@@ -209,6 +209,33 @@
     animation: fadeUp 0.8s ease forwards 0.6s;
   }
 
+  .prompted-by {
+    margin-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 0.75s;
+  }
+
+  .prompted-by .name-scramble {
+    color: var(--accent-1);
+    display: inline-block;
+  }
+
+  .prompted-by .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 12px;
+    background: var(--accent-1);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 0.8s step-end infinite;
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
   .hero-divider {
     width: 1px;
     height: 120px;
@@ -785,6 +812,7 @@
   <div class="hero-label">Higgsfield + Hollywood Directing</div>
   <h1>The <em>Commercial</em> Production Workflow</h1>
   <p class="hero-sub">A 6-phase, 24-step production pipeline that maps Hollywood directing methodology onto every tool inside Higgsfield. From blank brief to deployed ad.</p>
+  <p class="prompted-by">prompted by <span class="name-scramble" id="scramble-name"></span><span class="cursor"></span></p>
   <div class="hero-divider"></div>
   <div class="scroll-cta" onclick="document.getElementById('overview-section').scrollIntoView({behavior:'smooth'})">↓ scroll to begin</div>
 </section>
@@ -1738,6 +1766,39 @@
     });
     document.getElementById('filter-toast').classList.remove('show');
   }
+
+  // ── NAME SCRAMBLE EFFECT ───────────────────────────────────
+  (function() {
+    const target = 'Nabil Zairig';
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!@#$%&*';
+    const el = document.getElementById('scramble-name');
+    let iteration = 0;
+    const totalFrames = target.length * 6;
+
+    function randomChar() {
+      return chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    function scramble() {
+      el.textContent = target.split('').map((char, i) => {
+        if (char === ' ') return ' ';
+        const resolveAt = i * 6;
+        if (iteration >= resolveAt + 4) return char;
+        if (iteration >= resolveAt) return randomChar();
+        return randomChar();
+      }).join('');
+
+      iteration++;
+      if (iteration < totalFrames + 4) {
+        setTimeout(scramble, 45);
+      } else {
+        el.textContent = target;
+      }
+    }
+
+    // Start after the fadeUp animation completes
+    setTimeout(scramble, 1200);
+  })();
 
   // ── DECISION GATE ──────────────────────────────────────────
   function selectDecision(row) {
