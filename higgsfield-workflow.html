@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Higgsfield Commercial Production Workflow</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #111114;
+    --surface-2: #18181c;
+    --surface-3: #1f1f24;
+    --border: #2a2a32;
+    --border-accent: #3a3a44;
+    --text: #e8e6e3;
+    --text-muted: #8a8892;
+    --text-dim: #5a5866;
+    --accent-1: #f0c040;
+    --accent-2: #e06040;
+    --accent-3: #40b0e0;
+    --accent-4: #60d080;
+    --accent-5: #c060e0;
+    --accent-6: #e08060;
+    --phase-pre: #f0c040;
+    --phase-create: #40b0e0;
+    --phase-produce: #e06040;
+    --phase-assemble: #60d080;
+    --phase-polish: #c060e0;
+    --phase-deploy: #e08060;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+
+  /* SCROLL PROGRESS BAR */
+  #progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    width: 0%;
+    background: linear-gradient(to right, var(--accent-1), var(--accent-3));
+    z-index: 10001;
+    transition: width 0.1s linear;
+  }
+
+  /* GRAIN */
+  .grain {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
+  /* STICKY NAV */
+  #sticky-nav {
+    position: fixed;
+    top: 2px; left: 0; right: 0;
+    z-index: 1000;
+    background: rgba(10,10,12,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 48px;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  #sticky-nav.visible { transform: translateY(0); }
+
+  .nav-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .nav-pill:hover { color: var(--text); border-color: var(--border-accent); }
+
+  .nav-pill.active-pre   { color: var(--phase-pre);     border-color: var(--phase-pre);     background: rgba(240,192,64,0.1); }
+  .nav-pill.active-create  { color: var(--phase-create);   border-color: var(--phase-create);   background: rgba(64,176,224,0.1); }
+  .nav-pill.active-produce { color: var(--phase-produce);  border-color: var(--phase-produce);  background: rgba(224,96,64,0.1); }
+  .nav-pill.active-assemble{ color: var(--phase-assemble); border-color: var(--phase-assemble); background: rgba(96,208,128,0.1); }
+  .nav-pill.active-polish  { color: var(--phase-polish);   border-color: var(--phase-polish);   background: rgba(192,96,224,0.1); }
+  .nav-pill.active-deploy  { color: var(--phase-deploy);   border-color: var(--phase-deploy);   background: rgba(224,128,96,0.1); }
+
+  .nav-progress {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .nav-steps-done {
+    color: var(--accent-4);
+  }
+
+  /* TOOL FILTER TOAST */
+  #filter-toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface-3);
+    border: 1px solid var(--border-accent);
+    border-radius: 24px;
+    padding: 10px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    z-index: 2000;
+    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    white-space: nowrap;
+  }
+
+  #filter-toast.show { transform: translateX(-50%) translateY(0); }
+
+  #filter-toast button {
+    background: none;
+    border: 1px solid var(--border-accent);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  #filter-toast button:hover { color: var(--text); }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(240,192,64,0.08) 0%, transparent 70%);
+    top: 10%; left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .hero-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent-1);
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 0.2s;
+  }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(42px, 7vw, 96px);
+    font-weight: 400;
+    line-height: 1.05;
+    max-width: 900px;
+    margin-bottom: 28px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 0.4s;
+  }
+
+  .hero h1 em { font-style: italic; color: var(--accent-1); }
+
+  .hero-sub {
+    font-size: 17px;
+    color: var(--text-muted);
+    max-width: 640px;
+    line-height: 1.7;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 0.6s;
+  }
+
+  .hero-divider {
+    width: 1px;
+    height: 120px;
+    background: linear-gradient(to bottom, var(--accent-1), transparent);
+    margin-top: 60px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 0.8s;
+  }
+
+  .scroll-cta {
+    margin-top: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    opacity: 0;
+    animation: fadeUp 0.8s ease forwards 1s, pulse 2s ease-in-out 1.5s infinite;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* OVERVIEW */
+  .overview {
+    padding: 80px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .overview-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 40px;
+  }
+
+  .pipeline-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 2px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .pipeline-phase {
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: filter 0.2s ease, transform 0.2s ease;
+    position: relative;
+  }
+
+  .pipeline-phase:hover { filter: brightness(1.3); transform: translateY(-2px); }
+  .pipeline-phase:active { transform: translateY(0); }
+
+  .pipeline-phase .num {
+    font-family: 'Instrument Serif', serif;
+    font-size: 32px;
+    font-weight: 400;
+    opacity: 0.4;
+    margin-bottom: 4px;
+  }
+
+  .pipeline-phase .name {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .pipeline-phase .click-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    opacity: 0;
+    margin-top: 6px;
+    transition: opacity 0.2s;
+    letter-spacing: 1px;
+  }
+
+  .pipeline-phase:hover .click-hint { opacity: 0.6; }
+
+  .p1 { background: rgba(240,192,64,0.1); color: var(--phase-pre); }
+  .p2 { background: rgba(64,176,224,0.1); color: var(--phase-create); }
+  .p3 { background: rgba(224,96,64,0.1); color: var(--phase-produce); }
+  .p4 { background: rgba(96,208,128,0.1); color: var(--phase-assemble); }
+  .p5 { background: rgba(192,96,224,0.1); color: var(--phase-polish); }
+  .p6 { background: rgba(224,128,96,0.1); color: var(--phase-deploy); }
+
+  .pipeline-sub {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: center;
+  }
+
+  /* PHASE SECTIONS */
+  .phase {
+    padding: 100px 24px 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+
+  .phase-number {
+    font-family: 'Instrument Serif', serif;
+    font-size: 72px;
+    font-weight: 400;
+    line-height: 1;
+    opacity: 0.2;
+  }
+
+  .phase-info h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 36px;
+    font-weight: 400;
+    margin-bottom: 6px;
+  }
+
+  .phase-info .tagline {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* HOLLYWOOD PRINCIPLE — collapsible */
+  .phase-hollywood {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 40px;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .phase-hollywood:hover { border-color: var(--border-accent); }
+
+  .phase-hollywood-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+  }
+
+  .phase-hollywood::before {
+    content: 'HOLLYWOOD PRINCIPLE';
+    position: absolute;
+    top: -9px;
+    left: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    background: var(--surface);
+    padding: 0 10px;
+    pointer-events: none;
+  }
+
+  .hollywood-toggle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: transform 0.3s;
+    flex-shrink: 0;
+  }
+
+  .phase-hollywood.collapsed .hollywood-toggle { transform: rotate(-90deg); }
+
+  .phase-hollywood-body {
+    overflow: hidden;
+    max-height: 200px;
+    transition: max-height 0.4s ease, padding 0.3s ease;
+    padding: 0 28px 20px;
+  }
+
+  .phase-hollywood.collapsed .phase-hollywood-body {
+    max-height: 0;
+    padding-bottom: 0;
+  }
+
+  .phase-hollywood p {
+    font-family: 'Instrument Serif', serif;
+    font-size: 18px;
+    font-style: italic;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+
+  /* STEP CARDS */
+  .steps { display: grid; gap: 16px; }
+
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .step:hover { border-color: var(--border-accent); }
+
+  .step.filtered-out {
+    opacity: 0.2;
+    pointer-events: none;
+  }
+
+  .step.filter-match {
+    box-shadow: 0 0 0 1px currentColor;
+  }
+
+  .step-header {
+    padding: 20px 28px 16px;
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .step-num {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .step-title-row { display: flex; flex-direction: column; gap: 4px; }
+
+  .step-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .step-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .step-toggle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--text-dim);
+    transition: transform 0.3s;
+    flex-shrink: 0;
+  }
+
+  .step.open .step-toggle { transform: rotate(90deg); }
+
+  .step-body {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.4s ease;
+    padding: 0 28px 0 92px;
+  }
+
+  .step.open .step-body {
+    max-height: 600px;
+    padding-bottom: 20px;
+  }
+
+  .step-body p {
+    font-size: 14px;
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+
+  .tool-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tool-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: filter 0.2s, transform 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .tool-tag:hover { filter: brightness(1.4); transform: scale(1.05); }
+  .tool-tag:active { transform: scale(0.97); }
+
+  /* STEP CHECKBOX */
+  .step-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--border-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    cursor: pointer;
+    color: transparent;
+  }
+
+  .step-check:hover { border-color: var(--text-muted); color: var(--text-dim); }
+  .step-check.done { background: var(--accent-4); border-color: var(--accent-4); color: #000; }
+
+  /* Phase color assignments */
+  .phase-pre .step-num { background: rgba(240,192,64,0.12); color: var(--phase-pre); }
+  .phase-pre .tool-tag { background: rgba(240,192,64,0.08); color: var(--phase-pre); }
+  .phase-pre .phase-number { color: var(--phase-pre); }
+  .phase-pre .phase-info h2 { color: var(--phase-pre); }
+  .phase-pre .filter-match { color: var(--phase-pre); }
+
+  .phase-create .step-num { background: rgba(64,176,224,0.12); color: var(--phase-create); }
+  .phase-create .tool-tag { background: rgba(64,176,224,0.08); color: var(--phase-create); }
+  .phase-create .phase-number { color: var(--phase-create); }
+  .phase-create .phase-info h2 { color: var(--phase-create); }
+  .phase-create .filter-match { color: var(--phase-create); }
+
+  .phase-produce .step-num { background: rgba(224,96,64,0.12); color: var(--phase-produce); }
+  .phase-produce .tool-tag { background: rgba(224,96,64,0.08); color: var(--phase-produce); }
+  .phase-produce .phase-number { color: var(--phase-produce); }
+  .phase-produce .phase-info h2 { color: var(--phase-produce); }
+  .phase-produce .filter-match { color: var(--phase-produce); }
+
+  .phase-assemble .step-num { background: rgba(96,208,128,0.12); color: var(--phase-assemble); }
+  .phase-assemble .tool-tag { background: rgba(96,208,128,0.08); color: var(--phase-assemble); }
+  .phase-assemble .phase-number { color: var(--phase-assemble); }
+  .phase-assemble .phase-info h2 { color: var(--phase-assemble); }
+  .phase-assemble .filter-match { color: var(--phase-assemble); }
+
+  .phase-polish .step-num { background: rgba(192,96,224,0.12); color: var(--phase-polish); }
+  .phase-polish .tool-tag { background: rgba(192,96,224,0.08); color: var(--phase-polish); }
+  .phase-polish .phase-number { color: var(--phase-polish); }
+  .phase-polish .phase-info h2 { color: var(--phase-polish); }
+  .phase-polish .filter-match { color: var(--phase-polish); }
+
+  .phase-deploy .step-num { background: rgba(224,128,96,0.12); color: var(--phase-deploy); }
+  .phase-deploy .tool-tag { background: rgba(224,128,96,0.08); color: var(--phase-deploy); }
+  .phase-deploy .phase-number { color: var(--phase-deploy); }
+  .phase-deploy .phase-info h2 { color: var(--phase-deploy); }
+  .phase-deploy .filter-match { color: var(--phase-deploy); }
+
+  /* DECISION BLOCK */
+  .decision-block {
+    background: var(--surface-2);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-top: 32px;
+  }
+
+  .decision-block h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    color: var(--text-dim);
+  }
+
+  .decision-row {
+    display: grid;
+    grid-template-columns: 1fr 32px 1fr;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .decision-row:hover { background: rgba(255,255,255,0.04); }
+
+  .decision-row.selected { background: rgba(255,255,255,0.07); }
+
+  .decision-if {
+    text-align: right;
+    color: var(--text-muted);
+  }
+
+  .decision-arrow {
+    text-align: center;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    transition: transform 0.2s;
+  }
+
+  .decision-row.selected .decision-arrow { transform: scale(1.4); }
+  .decision-then { font-weight: 500; }
+
+  /* MODEL MATRIX */
+  .model-matrix { margin-top: 40px; }
+
+  .model-matrix h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    color: var(--text-dim);
+  }
+
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .matrix-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .matrix-card:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+
+  .matrix-card h5 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .matrix-card p { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+  .matrix-card .use-for {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent-3);
+    margin-top: 8px;
+    display: block;
+  }
+
+  /* CONNECTOR */
+  .connector { display: flex; justify-content: center; padding: 32px 0; }
+  .connector-line {
+    width: 1px; height: 60px;
+    background: linear-gradient(to bottom, var(--border), transparent);
+  }
+
+  /* PRO TIPS */
+  .pro-tip {
+    background: rgba(240,192,64,0.04);
+    border-left: 2px solid var(--accent-1);
+    padding: 16px 20px;
+    margin-top: 20px;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .pro-tip-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--accent-1);
+    margin-bottom: 6px;
+  }
+
+  .pro-tip p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  /* FOOTER */
+  .footer {
+    padding: 80px 24px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    margin-top: 60px;
+  }
+
+  .footer p { font-size: 13px; color: var(--text-dim); }
+
+  /* QUICK REF */
+  .quick-ref { padding: 80px 24px; max-width: 1200px; margin: 0 auto; }
+
+  .quick-ref h3 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    margin-bottom: 32px;
+    color: var(--text);
+  }
+
+  .ref-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  .ref-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ref-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(42,42,50,0.5);
+    color: var(--text-muted);
+    vertical-align: top;
+    transition: background 0.2s;
+  }
+
+  .ref-table tr { cursor: pointer; }
+  .ref-table tr:hover td { background: rgba(255,255,255,0.025); }
+  .ref-table td:first-child { font-weight: 500; color: var(--text); }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .pipeline-strip { grid-template-columns: repeat(3, 1fr); }
+    .step-header { grid-template-columns: 36px 1fr auto; gap: 12px; padding: 16px 20px; }
+    .step-num { width: 36px; height: 36px; font-size: 12px; }
+    .step.open .step-body { padding: 0 20px 16px 68px; }
+    .phase-header { flex-direction: column; gap: 8px; }
+    .phase-number { font-size: 48px; }
+    .decision-row { grid-template-columns: 1fr; gap: 2px; }
+    .decision-if { text-align: left; }
+    .decision-arrow { text-align: left; }
+    .matrix-grid { grid-template-columns: 1fr; }
+    #sticky-nav { gap: 2px; padding: 0 12px; }
+    .nav-pill { padding: 4px 8px; font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<div class="grain"></div>
+
+<!-- STICKY NAV -->
+<nav id="sticky-nav">
+  <button class="nav-pill" data-target="phase-pre-section">01 Pre-Prod</button>
+  <button class="nav-pill" data-target="phase-create-section">02 Assets</button>
+  <button class="nav-pill" data-target="phase-produce-section">03 Production</button>
+  <button class="nav-pill" data-target="phase-assemble-section">04 Assembly</button>
+  <button class="nav-pill" data-target="phase-polish-section">05 Post</button>
+  <button class="nav-pill" data-target="phase-deploy-section">06 Deploy</button>
+  <div class="nav-progress">
+    <span class="nav-steps-done" id="steps-done-count">0</span><span>/24 steps</span>
+  </div>
+</nav>
+
+<!-- FILTER TOAST -->
+<div id="filter-toast">
+  <span id="filter-label">Filtering by tool</span>
+  <button onclick="clearFilter()">Clear filter ✕</button>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-label">Higgsfield + Hollywood Directing</div>
+  <h1>The <em>Commercial</em> Production Workflow</h1>
+  <p class="hero-sub">A 6-phase, 24-step production pipeline that maps Hollywood directing methodology onto every tool inside Higgsfield. From blank brief to deployed ad.</p>
+  <div class="hero-divider"></div>
+  <div class="scroll-cta" onclick="document.getElementById('overview-section').scrollIntoView({behavior:'smooth'})">↓ scroll to begin</div>
+</section>
+
+<!-- PIPELINE OVERVIEW -->
+<section class="overview" id="overview-section">
+  <div class="overview-title">Full Pipeline Overview — click any phase to jump</div>
+  <div class="pipeline-strip">
+    <div class="pipeline-phase p1" onclick="scrollToPhase('phase-pre-section')"><div class="num">01</div><div class="name">Pre-Production</div><div class="click-hint">↓ jump</div></div>
+    <div class="pipeline-phase p2" onclick="scrollToPhase('phase-create-section')"><div class="num">02</div><div class="name">Asset Creation</div><div class="click-hint">↓ jump</div></div>
+    <div class="pipeline-phase p3" onclick="scrollToPhase('phase-produce-section')"><div class="num">03</div><div class="name">Production</div><div class="click-hint">↓ jump</div></div>
+    <div class="pipeline-phase p4" onclick="scrollToPhase('phase-assemble-section')"><div class="num">04</div><div class="name">Assembly</div><div class="click-hint">↓ jump</div></div>
+    <div class="pipeline-phase p5" onclick="scrollToPhase('phase-polish-section')"><div class="num">05</div><div class="name">Post-Production</div><div class="click-hint">↓ jump</div></div>
+    <div class="pipeline-phase p6" onclick="scrollToPhase('phase-deploy-section')"><div class="num">06</div><div class="name">Deployment</div><div class="click-hint">↓ jump</div></div>
+  </div>
+  <p class="pipeline-sub">Concept &rarr; Script &rarr; Cast &rarr; Shoot &rarr; Cut &rarr; Grade &rarr; Sound &rarr; Ship</p>
+</section>
+
+<!-- PHASE 1: PRE-PRODUCTION -->
+<section class="phase phase-pre" id="phase-pre-section">
+  <div class="phase-header">
+    <div class="phase-number">01</div>
+    <div class="phase-info">
+      <h2>Pre-Production</h2>
+      <div class="tagline">The script is the blueprint. Everything downstream inherits from what you decide here.</div>
+    </div>
+  </div>
+
+  <div class="phase-hollywood" onclick="toggleHollywood(this)">
+    <div class="phase-hollywood-header">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">Click to expand</span>
+      <span class="hollywood-toggle">▾</span>
+    </div>
+    <div class="phase-hollywood-body">
+      <p>In Hollywood, pre-production consumes 60% of total project time. The director, DP, and AD break down every shot before a camera rolls. Bad pre-production makes post-production expensive. Good pre-production makes the shoot mechanical.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="step-1A" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">1A</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Define the Commercial Objective</h3>
+          <div class="step-meta"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-1A')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Lock the ad type before anything else. A product reveal demands different shot grammar than a UGC testimonial or a brand anthem. Decide: Is this a Hero Ad (cinematic, top-of-funnel awareness), a Direct Response Ad (action-driven, scroll-stopping CTA), or UGC-style social proof? The entire tool chain selection flows from this single decision.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-1B" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">1B</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Write the Micro-Script</h3>
+          <div class="step-meta"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-1B')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>AI video clips max at 5-15 seconds per generation. Write to that constraint. Structure: Hook (0-2s) catches the scroll. Tension (2-6s) presents the problem or desire. Payoff (6-10s) reveals the product as resolution. CTA (10-12s) drives action. Each beat maps to one generation. Write the script as shot descriptions, not dialogue, unless you are producing a lipsync ad.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-1C" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">1C</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Build the Shot List with Camera Grammar</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Cinema Studio 2.5')">Cinema Studio 2.5</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Camera Controls')">Camera Controls</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-1C')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Assign each script beat a specific camera move. Higgsfield Cinema Studio supports real optical physics: camera body, lens type (Anamorphic, Spherical), focal length, and up to 3 simultaneous movements (dolly + pan + tilt). Write the shot list in directing language: "Slow dolly-in, 85mm Anamorphic, shallow DOF, warm key light camera-left." This is the prompt foundation for every generation.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-1D" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">1D</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Select Platform Aspect Ratio</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'YouTube Assist')">YouTube Assist</span>
+              <span class="tool-tag" onclick="filterByTool(event,'TikTok Assist')">TikTok Assist</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Reels Assist')">Reels Assist</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-1D')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Set aspect ratio at the start, not after generation. 9:16 for TikTok/Reels/Shorts. 1:1 for feed posts. 16:9 for YouTube pre-roll. 21:9 for Cinema Studio hero frames. Generating in the wrong ratio and cropping later destroys composition. Higgsfield supports all standard ratios natively.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision-block">
+    <h4>Decision Gate: Which Production Path? — click a row to select</h4>
+    <div class="decision-row" onclick="selectDecision(this)">
+      <div class="decision-if">Fast product ad from existing URL</div>
+      <div class="decision-arrow">&rarr;</div>
+      <div class="decision-then" style="color:var(--phase-pre)">Click-to-Ad (skip to Phase 6)</div>
+    </div>
+    <div class="decision-row" onclick="selectDecision(this)">
+      <div class="decision-if">Template-driven product placement ad</div>
+      <div class="decision-arrow">&rarr;</div>
+      <div class="decision-then" style="color:var(--phase-pre)">Higgsfield Ads 2.0 (skip to Phase 4)</div>
+    </div>
+    <div class="decision-row" onclick="selectDecision(this)">
+      <div class="decision-if">Full cinematic commercial with character</div>
+      <div class="decision-arrow">&rarr;</div>
+      <div class="decision-then" style="color:var(--phase-pre)">Full Pipeline (continue to Phase 2)</div>
+    </div>
+    <div class="decision-row" onclick="selectDecision(this)">
+      <div class="decision-if">UGC-style talking head ad</div>
+      <div class="decision-arrow">&rarr;</div>
+      <div class="decision-then" style="color:var(--phase-pre)">Soul ID + Lipsync Studio (Phase 2 &rarr; 4)</div>
+    </div>
+  </div>
+</section>
+
+<div class="connector"><div class="connector-line"></div></div>
+
+<!-- PHASE 2: ASSET CREATION -->
+<section class="phase phase-create" id="phase-create-section">
+  <div class="phase-header">
+    <div class="phase-number">02</div>
+    <div class="phase-info">
+      <h2>Asset Creation</h2>
+      <div class="tagline">Cast your actors, build your sets, prepare your product hero shots.</div>
+    </div>
+  </div>
+
+  <div class="phase-hollywood" onclick="toggleHollywood(this)">
+    <div class="phase-hollywood-header">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">Click to expand</span>
+      <span class="hollywood-toggle">▾</span>
+    </div>
+    <div class="phase-hollywood-body">
+      <p>A Hollywood director never starts filming without locked casting, scouted locations, and approved wardrobe. The "Reference Anchor" workflow in Cinema Studio is the AI equivalent: lock your Hero Frame before animating anything. Every visual decision cascades from that anchor.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="step-2A" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">2A</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Cast Your Character with Soul Cast</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Soul Cast')">Soul Cast</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Soul ID')">Soul ID</span>
+              <span class="tool-tag" onclick="filterByTool(event,'AI Influencer Studio')">AI Influencer Studio</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-2A')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Soul Cast lets you define an AI actor with genre, era, physique, backstory, and personality. Save the character to your Elements library. Cinema Studio 2.5 supports up to 3 Soul Cast characters in a single scene with distinct emotional states per actor. If you need the character to speak, train a Soul ID so the face stays locked across lipsync generations. Do not skip this. Character inconsistency kills commercial believability instantly.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-2B" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">2B</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Generate the Hero Frame (Key Image)</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Cinema Studio 2.5')">Cinema Studio 2.5</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Soul Cinema')">Soul Cinema</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Nano Banana Pro')">Nano Banana Pro</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-2B')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Open Cinema Studio 2.5. Place your Soul Cast character(s). Prompt your location with specificity: "modern white kitchen, indirect warm light, marble countertop, morning, shallow depth of field." Configure the camera rig: select camera body, lens type (Anamorphic for cinematic flare, Spherical for clean commercial look), and focal length. Generate a batch in 21:9 or your target ratio. Review. Select the single best frame. This is your Anchor. The video engine will inherit exact facial geometry, wardrobe, and lighting from this image.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-2C" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">2C</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Prepare Product Imagery</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Background Remover')">Background Remover</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Expand Image')">Expand Image</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Product Placement')">Product Placement</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Banana Placement')">Banana Placement</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-2C')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>For product-centric ads, you need isolated product shots on clean backgrounds at the highest resolution you can source. Use Higgsfield's Background Remover to isolate the product. Use Expand Image to extend canvas if needed. For product placement via Draw-to-Video, you will overlay the product onto your character scene, so prepare these assets now. For Banana Placement or Product Placement features, upload the clean product image separately.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-2D" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">2D</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Color Grade the Key Frame</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Cinema Studio Colorgrade')">Cinema Studio Colorgrade</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Relight')">Relight</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-2D')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Cinema Studio 2.5 includes built-in color grading before you animate. Adjust temperature, contrast, saturation, grain, bloom, and exposure on your Hero Frame. This grade propagates into video. Decide the look now: warm and luxurious, cold and clinical, desaturated and editorial. Grade it. Lock it.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pro-tip">
+    <div class="pro-tip-label">Director's Note</div>
+    <p>Generate 8-12 hero frames per scene. Directors shoot coverage. You should too. The best frame is rarely the first one. Review all of them before committing your anchor.</p>
+  </div>
+</section>
+
+<div class="connector"><div class="connector-line"></div></div>
+
+<!-- PHASE 3: PRODUCTION -->
+<section class="phase phase-produce" id="phase-produce-section">
+  <div class="phase-header">
+    <div class="phase-number">03</div>
+    <div class="phase-info">
+      <h2>Production</h2>
+      <div class="tagline">Camera rolls. Generate each shot as a discrete clip with directed motion.</div>
+    </div>
+  </div>
+
+  <div class="phase-hollywood" onclick="toggleHollywood(this)">
+    <div class="phase-hollywood-header">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">Click to expand</span>
+      <span class="hollywood-toggle">▾</span>
+    </div>
+    <div class="phase-hollywood-body">
+      <p>On a real set, the director calls "Action" only after the DP has set focus, the gaffer has locked lights, and the AD has cleared the set. In Higgsfield, the equivalent is: anchor locked, rig configured, prompt finalized. Only then generate video. Randomness is the enemy of commercial quality.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="step-3A" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">3A</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Select the Right Model for Each Shot</h3>
+          <div class="step-meta"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-3A')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Different shots demand different engines. This is the core advantage of Higgsfield's multi-model architecture. Match the model to the shot requirement, not the other way around. See the Model Selection Matrix below.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-3B" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">3B</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Choreograph Camera Motion</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Camera Controls')">Camera Controls</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Multi-Axis Motion')">Multi-Axis Motion</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Start/End Frame')">Start/End Frame</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-3B')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Cinema Studio supports stacking up to 3 simultaneous camera movements. Map each shot from your shot list: dolly-in for intimacy, crane-up for grandeur, orbit for product reveal, whip-pan for energy. Use Start Frame and End Frame references to lock the opening and closing composition. The model interpolates between them. This is how you get deterministic motion instead of random AI drift.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-3C" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">3C</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Set Genre Logic</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Genre Selection')">Genre Selection</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Cinema Studio')">Cinema Studio</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-3C')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Cinema Studio supports selectable cinematic genres: Action, Horror, Comedy, Suspense, and more. Genre selection alters pacing, motion energy, and camera behavior automatically. For a luxury product ad, select a genre profile that favors slow, controlled movement. For an energy drink, select one with aggressive pacing. This is not decoration; it changes the underlying motion calculation.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-3D" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">3D</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Generate Clips Per Beat</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Sora 2')">Sora 2</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Kling 3.0')">Kling 3.0</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Veo 3.1')">Veo 3.1</span>
+              <span class="tool-tag" onclick="filterByTool(event,'WAN 2.5')">WAN 2.5</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-3D')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Generate each script beat as a separate 5-10 second clip. Do not try to cram the entire ad into one generation. Hollywood shoots coverage. You generate coverage. For each beat: load your Hero Frame as anchor, set camera motion, write the action prompt (what happens in the scene), select model, and generate. Run 3-4 variations of each shot. Choose the best take. Move to the next beat.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-3E" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">3E</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Generate Product Placement Shots</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Packshot')">Packshot</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Macroshot Product')">Macroshot Product</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Giant Product')">Giant Product</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Draw-to-Video')">Draw-to-Video</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Truck Ad')">Truck Ad</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Billboard Ad')">Billboard Ad</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-3E')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>For product-hero moments, use dedicated tools. Packshot for clean macro product reveals. Macroshot Product for extreme close-ups. Giant Product for surreal scale effects. Truck Ad / Billboard Ad / Fridge Ad for contextual placement presets. Draw-to-Video for manually compositing the product into a character scene before animating. Layer the product into the frame, then generate motion.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="model-matrix">
+    <h4>Model Selection Matrix — click a card to learn more</h4>
+    <div class="matrix-grid">
+      <div class="matrix-card" onclick="filterByTool(event,'Sora 2')">
+        <h5>Sora 2</h5>
+        <p>Best-in-class lighting physics and motion coherence. Handles complex camera pans with environmental shifts.</p>
+        <span class="use-for">USE FOR: Hero shots, product reveals, cinematic beauty shots</span>
+      </div>
+      <div class="matrix-card" onclick="filterByTool(event,'Kling 3.0')">
+        <h5>Kling 3.0</h5>
+        <p>15-second sequences with locked characters and native audio. Strong lip-sync with Kling Avatars 2.0.</p>
+        <span class="use-for">USE FOR: Dialogue shots, UGC talking heads, performance ads</span>
+      </div>
+      <div class="matrix-card" onclick="filterByTool(event,'Veo 3.1')">
+        <h5>Veo 3.1</h5>
+        <p>Google's model with synchronized voice, emotion, and intelligent camera. Supports vertical 9:16 natively.</p>
+        <span class="use-for">USE FOR: Spokesperson ads, product demos with narration</span>
+      </div>
+      <div class="matrix-card" onclick="filterByTool(event,'WAN 2.5')">
+        <h5>WAN 2.5</h5>
+        <p>Full text-to-video with auto lip-sync and audio in one generation. Up to 10 seconds. Multilingual support.</p>
+        <span class="use-for">USE FOR: Multi-language campaigns, fast social content, audio-synced clips</span>
+      </div>
+      <div class="matrix-card">
+        <h5>MiniMax Hailuo 02</h5>
+        <p>Fastest iteration speed. Lower fidelity but high volume. Good for testing compositions before committing to expensive models.</p>
+        <span class="use-for">USE FOR: Rapid prototyping, A/B variant testing, storyboard previews</span>
+      </div>
+      <div class="matrix-card">
+        <h5>Seedance Pro</h5>
+        <p>Strong motion choreography. Useful when the action within the frame is the hero, not the camera.</p>
+        <span class="use-for">USE FOR: Dance sequences, action movement, dynamic product interaction</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="connector"><div class="connector-line"></div></div>
+
+<!-- PHASE 4: ASSEMBLY -->
+<section class="phase phase-assemble" id="phase-assemble-section">
+  <div class="phase-header">
+    <div class="phase-number">04</div>
+    <div class="phase-info">
+      <h2>Assembly</h2>
+      <div class="tagline">The edit room. Sequence clips, add transitions, layer performance.</div>
+    </div>
+  </div>
+
+  <div class="phase-hollywood" onclick="toggleHollywood(this)">
+    <div class="phase-hollywood-header">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">Click to expand</span>
+      <span class="hollywood-toggle">▾</span>
+    </div>
+    <div class="phase-hollywood-body">
+      <p>Walter Murch's Rule of Six: emotion, story, rhythm, eye-trace, 2D plane, 3D space. Every cut serves at least three. In AI video assembly, the same applies. A transition is not decoration. It is a storytelling device. A cut on action hides the seam between two AI generations. A match cut connects product to desire.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="step-4A" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">4A</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Sequence Your Best Takes</h3>
+          <div class="step-meta"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-4A')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Arrange selected clips in script order: Hook, Tension, Payoff, CTA. Each clip is one beat. If any beat feels weak, regenerate it now, not after you have built audio on top of it. The assembly cut is your first chance to evaluate pacing. Watch it through. If the hook does not land in under 2 seconds, the ad fails. Regenerate the hook.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-4B" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">4B</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Apply Transitions Between Clips</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Transitions Library')">Transitions Library</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Match Cut')">Match Cut</span>
+              <span class="tool-tag" onclick="filterByTool(event,'ClipCut')">ClipCut</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Seamless Transition')">Seamless Transition</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-4B')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Higgsfield has 60+ transition effects. Use them with intent. Match cuts for product reveals (product morphs into lifestyle). Sticker Match Cut for visual continuity between scenes. ClipCut for hard cuts with stylized energy. Seamless Transition for invisible joins. Fire / Splash / Smoke transitions for action products. The transition must match the emotional tone of the beat it connects.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-4C" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">4C</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Layer Voice and Lip-sync Performance</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Lipsync Studio')">Lipsync Studio</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Speak v2')">Speak v2</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Kling Avatars 2.0')">Kling Avatars 2.0</span>
+              <span class="tool-tag" onclick="filterByTool(event,'InfiniteTalk')">InfiniteTalk</span>
+              <span class="tool-tag" onclick="filterByTool(event,'ElevenLabs')">ElevenLabs</span>
+              <span class="tool-tag" onclick="filterByTool(event,'VibeVoice')">VibeVoice</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-4C')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>If the ad includes spoken content: open Lipsync Studio. Upload your Hero Frame (or Soul ID character). Write the script. Select voice via Speak v2 (gender, accent, emotion, pacing). Generate lipsync video with Kling Avatars 2.0 for full body expression or InfiniteTalk for longer-form. For multilingual campaigns, generate the same script in 10+ languages with automatic lip-sync adaptation.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-4D" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">4D</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Add Visual Effects for Impact Moments</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Visual Effects')">Visual Effects</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Bullet Time')">Bullet Time</span>
+              <span class="tool-tag" onclick="filterByTool(event,'3D Rotation')">3D Rotation</span>
+              <span class="tool-tag" onclick="filterByTool(event,'3D Render')">3D Render</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Magic Button')">Magic Button</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-4D')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Higgsfield's VFX library covers explosions, particle animations, surreal transformations, and environmental effects. Apply strategically to transition moments or product hero beats. Bullet Time for freeze-frame product glory. 3D Rotation for 360 product views. Magic Button for interactive-feeling reveals. Do not over-apply. One VFX moment per 10-second ad. More than that reads as amateur.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pro-tip">
+    <div class="pro-tip-label">Director's Note</div>
+    <p>Watch the assembly at 2x speed. If the story still reads clearly at double pace, the visual storytelling is strong enough. If it collapses into confusion, the shot sequence is wrong, not the individual clips.</p>
+  </div>
+</section>
+
+<div class="connector"><div class="connector-line"></div></div>
+
+<!-- PHASE 5: POST-PRODUCTION -->
+<section class="phase phase-polish" id="phase-polish-section">
+  <div class="phase-header">
+    <div class="phase-number">05</div>
+    <div class="phase-info">
+      <h2>Post-Production</h2>
+      <div class="tagline">Polish, enhance, upscale. The difference between "AI video" and "commercial."</div>
+    </div>
+  </div>
+
+  <div class="phase-hollywood" onclick="toggleHollywood(this)">
+    <div class="phase-hollywood-header">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">Click to expand</span>
+      <span class="hollywood-toggle">▾</span>
+    </div>
+    <div class="phase-hollywood-body">
+      <p>In Hollywood, post-production is where 30% of the budget lives: color science, sound design, VFX compositing, DI mastering. The audience cannot articulate what post does, but they feel its absence instantly. AI video without post-production enhancement looks like AI video. With it, it looks like production.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="step-5A" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">5A</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Enhance with Sora 2 Enhancer</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Sora 2 Enhancer')">Sora 2 Enhancer</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-5A')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Run each clip through Sora 2 Enhancer for tone correction, frame stability, and motion smoothing. This corrects the subtle jitter and temporal inconsistency that flags AI video to trained eyes. Process the clips that will appear in the final cut, not every variant you generated.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-5B" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">5B</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Upscale Resolution</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Higgsfield Upscale')">Higgsfield Upscale</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Topaz Video AI')">Topaz Video AI</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-5B')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Higgsfield Upscale reconstructs lost detail using texture prediction. It rebuilds edges, textures, and fine contrast without introducing noise or halos. Run this on any clip that originated below 1080p, or on legacy/real footage you are compositing alongside AI-generated clips. Topaz Video AI inside Higgsfield handles advanced frame restoration and noise reduction for clips that need heavier repair.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-5C" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">5C</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Apply Skin Enhancement and Relighting</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Skin Enhancer')">Skin Enhancer</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Relight')">Relight</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-5C')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>For any shot featuring a face (especially beauty, fashion, or UGC-style ads), run Skin Enhancer to smooth texture without destroying detail. Use Relight to adjust the lighting direction and intensity after generation. This is the equivalent of a lighting pass in compositing. It separates professional output from raw generation.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-5D" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">5D</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Apply Mixed Media Overlays (Optional)</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Mixed Media')">Mixed Media</span>
+              <span class="tool-tag" onclick="filterByTool(event,'30+ Style Presets')">30+ Style Presets</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-5D')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>For stylized campaigns, layer a Mixed Media preset: Noir for luxury, Comic for youth brands, Vintage for heritage, Sketch for conceptual teasers. Over 30 presets available. Apply after base generation, not before. This is a post-production style pass, not a generation style. It preserves motion quality while transforming aesthetic.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="connector"><div class="connector-line"></div></div>
+
+<!-- PHASE 6: DEPLOYMENT -->
+<section class="phase phase-deploy" id="phase-deploy-section">
+  <div class="phase-header">
+    <div class="phase-number">06</div>
+    <div class="phase-info">
+      <h2>Deployment</h2>
+      <div class="tagline">Format, export, distribute. Variants at scale.</div>
+    </div>
+  </div>
+
+  <div class="phase-hollywood" onclick="toggleHollywood(this)">
+    <div class="phase-hollywood-header">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">Click to expand</span>
+      <span class="hollywood-toggle">▾</span>
+    </div>
+    <div class="phase-hollywood-body">
+      <p>A feature film has one final cut. A commercial has dozens: 6s bumper, 15s pre-roll, 30s spot, 60s long-form, square social, vertical stories. Hollywood deliverables are format-aware from inception. Your Higgsfield workflow should be too.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step" id="step-6A" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">6A</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Export Platform-Specific Formats</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'YouTube Assist')">YouTube Assist</span>
+              <span class="tool-tag" onclick="filterByTool(event,'TikTok Assist')">TikTok Assist</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Reels Assist')">Reels Assist</span>
+              <span class="tool-tag" onclick="filterByTool(event,'YouTube Shorts Assist')">YouTube Shorts Assist</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-6A')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Use Higgsfield's platform Assists to reformat your finished ad for each channel. The Assists are not just resizers. They adjust pacing and composition for platform-native behavior. YouTube Assist for 16:9 pre-roll. TikTok and YouTube Shorts Assist for 9:16 vertical. Instagram Reels Assist for vertical with caption-safe zones.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-6B" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">6B</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Generate Variants for A/B Testing</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Sora 2 Trends')">Sora 2 Trends</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Presets Library')">Presets Library</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Character Swap 2.0')">Character Swap 2.0</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Recast')">Recast</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-6B')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Swap the hook. Change the CTA. Try a different transition style. Generate 3-5 variants of the same ad with structural differences. Use MiniMax Hailuo 02 for fast variant iteration. Use Sora 2 Trends presets for platform-optimized pacing that matches current viral patterns. Test different Soul Cast characters in the same script. Concurrent generation means dozens of variants per hour.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-6C" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">6C</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Localize for Multi-Market Campaigns</h3>
+          <div class="step-meta">
+            <div class="tool-tags">
+              <span class="tool-tag" onclick="filterByTool(event,'Higgsfield Audio')">Higgsfield Audio</span>
+              <span class="tool-tag" onclick="filterByTool(event,'lipsync-2')">lipsync-2</span>
+              <span class="tool-tag" onclick="filterByTool(event,'InfiniteTalk')">InfiniteTalk</span>
+              <span class="tool-tag" onclick="filterByTool(event,'Voice Cloning')">Voice Cloning</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-6C')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Higgsfield Audio supports voice cloning and multilingual synthesis via ElevenLabs and VibeVoice. Translate your script, generate lip-synced versions in 10+ languages using lipsync-2 or InfiniteTalk, and export. The character face, body language, and scene stay identical. Only the language changes. This is the localization pipeline that used to cost $50K+ per language.</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-6D" onclick="toggleStep(this)">
+      <div class="step-header">
+        <div class="step-num">6D</div>
+        <div class="step-title-row">
+          <h3 class="step-content">Iterate Based on Performance Data</h3>
+          <div class="step-meta"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="step-check" onclick="toggleCheck(event,'step-6D')">✓</div>
+          <div class="step-toggle">›</div>
+        </div>
+      </div>
+      <div class="step-body">
+        <p>Deploy. Measure. The ad that performs best in week one rarely survives week four. Regenerate the weakest-performing beat using a different model or camera angle. Swap the character. Change the product shot angle. The entire pipeline is non-destructive. Your Hero Frames, Soul Cast actors, and scripts persist. Regeneration of any single beat takes minutes, not days.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK REFERENCE TABLE -->
+<section class="quick-ref">
+  <h3>Higgsfield Tool Quick Reference</h3>
+  <table class="ref-table">
+    <thead>
+      <tr>
+        <th>Tool / Feature</th>
+        <th>What It Does</th>
+        <th>When to Use It</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr onclick="filterByTool(event,'Cinema Studio 2.5')"><td>Cinema Studio 2.5</td><td>Virtual camera rig with optical physics, lens selection, multi-axis motion, genre logic, color grading</td><td>Every hero shot in a cinematic ad</td></tr>
+      <tr onclick="filterByTool(event,'Soul Cast')"><td>Soul Cast / Soul ID</td><td>Persistent AI actor creation with face-lock across all scenes and formats</td><td>Any ad featuring a human character</td></tr>
+      <tr><td>Click-to-Ad</td><td>Paste product URL, auto-extracts assets, generates 12s video ad from 25+ presets</td><td>Fast direct-response ads, rapid testing</td></tr>
+      <tr><td>Higgsfield Ads 2.0</td><td>Upload product image, select from 30+ templates, auto product placement with motion</td><td>Product-centric social ads at scale</td></tr>
+      <tr onclick="filterByTool(event,'Lipsync Studio')"><td>Lipsync Studio</td><td>Text/audio to lip-synced talking video with Speak v2, Kling Avatars, InfiniteTalk, Veo 3</td><td>Spokesperson ads, UGC, explainers</td></tr>
+      <tr onclick="filterByTool(event,'Draw-to-Video')"><td>Draw-to-Video</td><td>Visually compose product/object placement in frame before animating</td><td>Custom product placement, storyboard-to-motion</td></tr>
+      <tr onclick="filterByTool(event,'Sora 2 Trends')"><td>Sora 2 Trends</td><td>Trend-matched presets with viral pacing patterns, platform-native output</td><td>Social-first content aligned to current trends</td></tr>
+      <tr onclick="filterByTool(event,'Mixed Media')"><td>Mixed Media</td><td>30+ artistic style overlays (Noir, Comic, Sketch, Vintage, etc.)</td><td>Stylized campaigns, brand differentiation</td></tr>
+      <tr><td>UGC Factory</td><td>Full UGC pipeline: character + script + environment + audio in one workflow</td><td>High-volume UGC ad production</td></tr>
+      <tr onclick="filterByTool(event,'Sora 2 Enhancer')"><td>Sora 2 Enhancer</td><td>Tone correction, frame stability, motion smoothing for AI-generated clips</td><td>Post-production polish on every final clip</td></tr>
+      <tr onclick="filterByTool(event,'Higgsfield Upscale')"><td>Higgsfield Upscale / Topaz</td><td>AI-powered resolution enhancement and noise reduction</td><td>Any clip below target resolution or with visible artifacts</td></tr>
+      <tr onclick="filterByTool(event,'Visual Effects')"><td>Visual Effects Library</td><td>Explosions, particle systems, bullet time, 3D renders, environmental FX</td><td>One high-impact moment per ad, transitions</td></tr>
+      <tr><td>Commercial Faces</td><td>Marketplace of consented human faces for commercial use</td><td>Ads requiring licensed human likeness</td></tr>
+      <tr onclick="filterByTool(event,'Higgsfield Audio')"><td>Higgsfield Audio</td><td>Voice cloning, multilingual synthesis, localization via ElevenLabs/VibeVoice</td><td>Multi-language campaigns, branded voice</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer class="footer">
+  <p>Higgsfield Commercial Production Workflow &middot; Research compiled March 2026 &middot; For WebInstinct</p>
+</footer>
+
+<script>
+  // ── PROGRESS BAR ──────────────────────────────────────────
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+  });
+
+  // ── STICKY NAV ────────────────────────────────────────────
+  const nav = document.getElementById('sticky-nav');
+  const heroEl = document.querySelector('.hero');
+
+  const navObserver = new IntersectionObserver(([e]) => {
+    nav.classList.toggle('visible', !e.isIntersecting);
+  }, { threshold: 0 });
+  navObserver.observe(heroEl);
+
+  // Active phase highlight in nav
+  const phases = ['pre','create','produce','assemble','polish','deploy'];
+  const phaseObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id; // e.g. "phase-pre-section"
+        const key = id.replace('phase-','').replace('-section','');
+        document.querySelectorAll('.nav-pill').forEach(p => {
+          p.className = 'nav-pill';
+          if (p.dataset.target === id) p.classList.add('active-' + key);
+        });
+      }
+    });
+  }, { threshold: 0.25 });
+
+  phases.forEach(p => {
+    const el = document.getElementById('phase-' + p + '-section');
+    if (el) phaseObserver.observe(el);
+  });
+
+  // Nav pill click
+  document.querySelectorAll('.nav-pill[data-target]').forEach(pill => {
+    pill.addEventListener('click', () => {
+      scrollToPhase(pill.dataset.target);
+    });
+  });
+
+  // ── SCROLL TO PHASE ────────────────────────────────────────
+  function scrollToPhase(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── HOLLYWOOD PRINCIPLE TOGGLE ─────────────────────────────
+  function toggleHollywood(el) {
+    el.classList.toggle('collapsed');
+  }
+
+  // Collapse all Hollywood blocks by default
+  document.querySelectorAll('.phase-hollywood').forEach(h => h.classList.add('collapsed'));
+
+  // ── STEP EXPAND/COLLAPSE ───────────────────────────────────
+  function toggleStep(el) {
+    // Don't collapse if user clicked check
+    el.classList.toggle('open');
+  }
+
+  // ── STEP PROGRESS CHECKBOXES ───────────────────────────────
+  const STORAGE_KEY = 'higgsfield_steps_done';
+  let done = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+  function updateDoneCount() {
+    document.getElementById('steps-done-count').textContent = done.length;
+  }
+
+  function toggleCheck(event, stepId) {
+    event.stopPropagation();
+    const check = event.currentTarget;
+    const idx = done.indexOf(stepId);
+    if (idx === -1) {
+      done.push(stepId);
+      check.classList.add('done');
+    } else {
+      done.splice(idx, 1);
+      check.classList.remove('done');
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(done));
+    updateDoneCount();
+  }
+
+  // Restore checkboxes on load
+  done.forEach(id => {
+    const check = document.querySelector('#' + id + ' .step-check');
+    if (check) check.classList.add('done');
+  });
+  updateDoneCount();
+
+  // ── TOOL TAG FILTERING ─────────────────────────────────────
+  let activeFilter = null;
+
+  function filterByTool(event, toolName) {
+    event.stopPropagation();
+
+    if (activeFilter === toolName) {
+      clearFilter();
+      return;
+    }
+
+    activeFilter = toolName;
+    const allSteps = document.querySelectorAll('.step');
+
+    allSteps.forEach(step => {
+      const tags = [...step.querySelectorAll('.tool-tag')].map(t => t.textContent.trim());
+      if (tags.includes(toolName)) {
+        step.classList.remove('filtered-out');
+        step.classList.add('filter-match');
+        step.classList.add('open'); // auto-expand matching steps
+      } else {
+        step.classList.add('filtered-out');
+        step.classList.remove('filter-match');
+      }
+    });
+
+    document.getElementById('filter-label').textContent = 'Showing: ' + toolName;
+    document.getElementById('filter-toast').classList.add('show');
+  }
+
+  function clearFilter() {
+    activeFilter = null;
+    document.querySelectorAll('.step').forEach(step => {
+      step.classList.remove('filtered-out', 'filter-match');
+    });
+    document.getElementById('filter-toast').classList.remove('show');
+  }
+
+  // ── DECISION GATE ──────────────────────────────────────────
+  function selectDecision(row) {
+    const siblings = row.parentElement.querySelectorAll('.decision-row');
+    const isSelected = row.classList.contains('selected');
+    siblings.forEach(r => r.classList.remove('selected'));
+    if (!isSelected) row.classList.add('selected');
+  }
+</script>
+</body>
+</html>
